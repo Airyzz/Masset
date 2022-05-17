@@ -22,11 +22,18 @@ class MassAssetImport(Operator):
     test: bpy.props.BoolProperty(default=True, options={'HIDDEN'})
 
     directory: bpy.props.StringProperty(name="Directory", options={"HIDDEN"})
-    template: bpy.props.StringProperty()
+    template: bpy.props.StringProperty(name="Template Material")
+    ignore_regex: bpy.props.StringProperty(name="Ignore Regex")
+    mark_as_asset: bpy.props.BoolProperty(name="Mark As Asset")
 
     def execute(self, context):
-        assets = utils.find_assets(self.directory)
-        utils.import_assets(assets, self.template)
+
+        if not self.template in bpy.data.materials:
+            self.report({"ERROR"}, "Error: No valid template material found")
+            return {"CANCELLED"}
+
+        assets = utils.find_assets(self.directory, self.ignore_regex)
+        utils.import_assets(assets, self.template, self.mark_as_asset)
 
         return {"FINISHED"}
 
@@ -34,6 +41,10 @@ class MassAssetImport(Operator):
         layout = self.layout
         row = layout.row()
         row.prop(self, "template")
+        row = layout.row()
+        row.prop(self, "ignore_regex")
+        row = layout.row()
+        row.prop(self, "mark_as_asset")
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)

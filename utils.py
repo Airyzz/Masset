@@ -3,6 +3,21 @@ from pathlib import Path
 import json
 from . import constants
 import bpy
+import re
+import numpy as np
+import time
+
+def try_generate_thumbnail(asset, iterations, delay):
+
+    asset.asset_generate_preview()
+    preview = asset.preview
+    for i in range(iterations):
+        arr = np.zeros((preview.image_size[0] * preview.image_size[1]) * 4, dtype=np.float32)
+        preview.image_pixels_float.foreach_get(arr)
+        if np.all((arr == 0)):    
+            time.sleep(delay)
+        else:
+            break
 
 def find_models(directory):
     formats = ['.fbx', '.obj', '.abc']
@@ -206,12 +221,17 @@ def find_asset(directory):
 
     return asset
 
-def find_assets(directory):
+def find_assets(directory, ignore_regex):
 
     assets = list()
 
     for file in os.listdir(directory):
         path = os.path.join(directory, file)
+
+        if ignore_regex != "":
+            if re.search(ignore_regex, path, flags=re.IGNORECASE) != None:
+                print("Path: " + path + "Matched regex, skipping")
+                continue
 
         if not os.path.isdir(path):
             continue
@@ -219,7 +239,7 @@ def find_assets(directory):
         asset = find_asset(path)
         if asset is not None:
             assets.append(asset)
-        assets = assets + find_assets(path)
+        assets = assets + find_assets(path, ignore_regex)
 
     return assets
 
@@ -264,12 +284,15 @@ def create_material(textures, template_material, name):
 
         if texture not in color_textures:
             node.image.colorspace_settings.name = 'Non-Color'
+            
 
         print("Loaded Image")
     
+
+
     return material
 
-def import_assets(assets, template_material_name):
+def import_assets(assets, template_material_name, mark_as_asset):
 
     template_material = bpy.data.materials[template_material_name]
 
@@ -284,6 +307,15 @@ def import_assets(assets, template_material_name):
 
         if constants.textures in asset:
             material = create_material(asset[constants.textures], template_material, name)
+
+            if mark_as_asset:
+                material.asset_mark()
+
+                if constants.tags in asset:
+                    for tag in asset[constants.tags]:
+                        material.asset_data.tags.new(tag)
+
+                try_generate_thumbnail(material, 20, 0.05)
 
         if constants.models in asset:
             pass
