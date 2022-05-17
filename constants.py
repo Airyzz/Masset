@@ -1,6 +1,3 @@
-from asyncio import constants
-
-
 roughness = "roughness"
 metallic = "metallic"
 albedo = "albedo"
